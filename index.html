@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Number Guessing Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .glow {
+            animation: glow 1.5s infinite alternate;
+        }
+        @keyframes glow {
+            0% {
+                box-shadow: 0 0 5px rgba(56, 178, 172, 0.6);
+            }
+            100% {
+                box-shadow: 0 0 20px rgba(56, 178, 172, 0.8);
+            }
+        }
+        .shake {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+            40%, 60% { transform: translate3d(4px, 0, 0); }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-teal-900 to-gray-900 min-h-screen flex items-center justify-center p-4">
+    <div class="max-w-md w-full bg-gray-800 rounded-xl shadow-2xl overflow-hidden">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h1 class="text-3xl font-bold text-teal-300">Guess The Number</h1>
+                <button id="help-btn" class="bg-teal-700 hover:bg-teal-600 text-white px-3 py-1 rounded-lg transition-all">
+                    ?
+                </button>
+            </div>
+            
+            <div id="intro-screen" class="mb-6 transition-all duration-300">
+                <p class="text-gray-300 mb-4">I'm thinking of a number between 1 and 100. Can you guess it?</p>
+                <div class="text-center">
+                    <button id="start-btn" class="bg-teal-600 hover:bg-teal-500 text-white px-6 py-3 rounded-lg text-lg font-bold transition-all transform hover:scale-105 glow">
+                        Start Game
+                    </button>
+                </div>
+            </div>
+            
+            <div id="game-screen" class="hidden mb-6 transition-all duration-300">
+                <div id="feedback" class="text-center mb-6 py-4 rounded-lg bg-gray-700">
+                    <p id="msg" class="text-xl text-gray-300">Make your first guess!</p>
+                    <p id="hint" class="text-gray-400 mt-1"></p>
+                </div>
+                
+                <div class="flex flex-col items-center">
+                    <input type="number" id="guess-input" class="w-full max-w-xs text-center bg-gray-700 text-2xl text-teal-300 border-2 border-teal-500 rounded-lg px-4 py-3 mb-4 focus:outline-none focus:ring-2 focus:ring-teal-400" placeholder="1-100" min="1" max="100">
+                    <button id="submit-btn" class="bg-teal-600 hover:bg-teal-500 text-white px-6 py-2 rounded-lg text-lg font-bold transition-all transform hover:scale-105">
+                        Submit Guess
+                    </button>
+                </div>
+                
+                <div class="mt-6 flex justify-between text-gray-400">
+                    <div>
+                        <span>Guesses: </span>
+                        <span id="guess-count" class="text-teal-300">0</span>
+                    </div>
+                    <div>
+                        <span>Range: </span>
+                        <span id="range" class="text-teal-300">1-100</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="win-screen" class="hidden text-center py-4 transition-all duration-300">
+                <svg class="w-20 h-20 mx-auto mb-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                <h2 class="text-3xl font-bold text-green-400 mb-2">You Win!</h2>
+                <p class="text-gray-300 mb-6">You guessed the number in <span id="final-count" class="text-green-400">5</span> tries.</p>
+                <button id="play-again-btn" class="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-lg text-lg font-bold transition-all transform hover:scale-105">
+                    Play Again
+                </button>
+            </div>
+        </div>
+        
+        <div id="guesses-container" class="bg-gray-700 p-4 max-h-40 overflow-y-auto">
+            <p class="text-gray-500 text-center">Your guesses will appear here...</p>
+            <ul id="guess-list" class="hidden mt-2 grid grid-cols-5 gap-2"></ul>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="fixed inset-0 bg-black bg-opacity-70 hidden items-center justify-center p-4 z-50">
+        <div class="bg-gray-800 rounded-xl max-w-md w-full p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-teal-300">How To Play</h3>
+                <button id="close-help" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div class="text-gray-300 space-y-3">
+                <p>I'm thinking of a number between 1 and 100.</p>
+                <p>Your goal is to guess that number in as few attempts as possible.</p>
+                <p>After each guess, I'll tell you if your guess was too high or too low.</p>
+                <p>Use this feedback to narrow down the possible range.</p>
+                <p>See how quickly you can find the right number!</p>
+            </div>
+            <div class="mt-6 text-center">
+                <button id="got-it-btn" class="bg-teal-600 hover:bg-teal-500 text-white px-6 py-2 rounded-lg">
+                    Got It!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Game variables
+        let targetNumber;
+        let guessCount = 0;
+        let minRange = 1;
+        let maxRange = 100;
+        let guesses = [];
+        
+        // DOM elements
+        const introScreen = document.getElementById('intro-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const winScreen = document.getElementById('win-screen');
+        const guessInput = document.getElementById('guess-input');
+        const submitBtn = document.getElementById('submit-btn');
+        const guessCountEl = document.getElementById('guess-count');
+        const rangeEl = document.getElementById('range');
+        const finalCountEl = document.getElementById('final-count');
+        const playAgainBtn = document.getElementById('play-again-btn');
+        const startBtn = document.getElementById('start-btn');
+        const helpBtn = document.getElementById('help-btn');
+        const helpModal = document.getElementById('help-modal');
+        const closeHelp = document.getElementById('close-help');
+        const gotItBtn = document.getElementById('got-it-btn');
+        const msgEl = document.getElementById('msg');
+        const hintEl = document.getElementById('hint');
+        const guessList = document.getElementById('guess-list');
+        const guessesContainer = document.getElementById('guesses-container');
+        
+        // Initialize game
+        function initGame() {
+            targetNumber = Math.floor(Math.random() * 100) + 1;
+            guessCount = 0;
+            minRange = 1;
+            maxRange = 100;
+            guesses = [];
+            
+            guessCountEl.textContent = guessCount;
+            rangeEl.textContent = `${minRange}-${maxRange}`;
+            msgEl.textContent = "Make your first guess!";
+            hintEl.textContent = "";
+            
+            guessInput.value = "";
+            guessInput.focus();
+            
+            guessList.innerHTML = "";
+            guessList.classList.add('hidden');
+            guessesContainer.querySelector('p').classList.remove('hidden');
+        }
+        
+        // Start game
+        startBtn.addEventListener('click', () => {
+            initGame();
+            introScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            winScreen.classList.add('hidden');
+        });
+        
+        // Play again
+        playAgainBtn.addEventListener('click', () => {
+            initGame();
+            introScreen.classList.remove('hidden');
+            gameScreen.classList.add('hidden');
+            winScreen.classList.add('hidden');
+        });
+        
+        // Submit guess
+        submitBtn.addEventListener('click', checkGuess);
+        guessInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                checkGuess();
+            }
+        });
+        
+        function checkGuess() {
+            const guess = parseInt(guessInput.value);
+            
+            // Validate input
+            if (isNaN(guess) || guess < 1 || guess > 100) {
+                guessInput.classList.add('shake');
+                msgEl.textContent = "Please enter a valid number (1-100)";
+                setTimeout(() => {
+                    guessInput.classList.remove('shake');
+                }, 500);
+                return;
+            }
+            
+            guessCount++;
+            guessCountEl.textContent = guessCount;
+            guesses.push(guess);
+            
+            // Display guess
+            if (guessList.classList.contains('hidden')) {
+                guessList.classList.remove('hidden');
+                guessesContainer.querySelector('p').classList.add('hidden');
+            }
+            
+            const guessItem = document.createElement('li');
+            guessItem.className = `text-center rounded ${guess === targetNumber ? 'bg-green-600 text-white' : 'bg-gray-600 text-gray-300'}`;
+            guessItem.textContent = guess;
+            guessList.appendChild(guessItem);
+            
+            // Check guess
+            if (guess === targetNumber) {
+                // Win condition
+                gameScreen.classList.add('hidden');
+                winScreen.classList.remove('hidden');
+                finalCountEl.textContent = guessCount;
+            } else {
+                // Provide feedback
+                guessInput.classList.add('shake');
+                setTimeout(() => {
+                    guessInput.classList.remove('shake');
+                }, 500);
+                
+                if (guess < targetNumber) {
+                    minRange = Math.max(minRange, guess + 1);
+                    msgEl.textContent = "Too Low!";
+                    hintEl.textContent = `Try a number between ${minRange} and ${maxRange}`;
+                } else {
+                    maxRange = Math.min(maxRange, guess - 1);
+                    msgEl.textContent = "Too High!";
+                    hintEl.textContent = `Try a number between ${minRange} and ${maxRange}`;
+                }
+                
+                rangeEl.textContent = `${minRange}-${maxRange}`;
+                guessInput.value = "";
+                guessInput.focus();
+            }
+        }
+        
+        // Help modal
+        helpBtn.addEventListener('click', () => {
+            helpModal.classList.remove('hidden');
+        });
+        
+        closeHelp.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+        
+        gotItBtn.addEventListener('click', () => {
+            helpModal.classList.add('hidden');
+        });
+        
+        // Close modal when clicking outside
+        helpModal.addEventListener('click', (e) => {
+            if (e.target === helpModal) {
+                helpModal.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
